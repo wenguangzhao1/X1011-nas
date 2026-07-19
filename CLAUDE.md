@@ -145,3 +145,34 @@ System dependencies:
 ## Language
 
 UI and comments are in Chinese. Error messages and log entries mix Chinese and English.
+
+## NVMe 散热优化
+
+### 问题
+闲置状态下 NVMe 温度可达 67-70°C，原因：
+- NVMe 扩展板无散热片
+- 电源管理默认未启用
+
+### 已配置优化
+1. **系统服务**: `/etc/systemd/system/nvme-power-save.service`
+   - 启用 NVMe 自动电源管理
+   - 设置低功耗电源状态 (PS 3: 0.07W)
+
+2. **内核参数**: `/boot/firmware/cmdline.txt`
+   - `nvme_core.default_ps_max_latency_us=55000`
+
+### 验证命令
+```bash
+# 检查温度
+sudo smartctl -A /dev/nvme{0..3} | grep Temperature
+
+# 检查电源状态
+sudo nvme get-feature -f 0x02 -H /dev/nvme0
+
+# 检查服务
+systemctl status nvme-power-save.service
+```
+
+### 硬件建议
+- 推荐安装 NVMe 散热马甲（降温 10-15°C）
+- 搜索关键词：`NVMe散热马甲`、`M.2散热片`

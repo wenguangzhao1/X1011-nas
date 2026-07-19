@@ -1,0 +1,514 @@
+{% extends "base.html" %}
+
+{% block title %}NAS管理系统 - 首页{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h4><i class="bi bi-hdd-stack me-2"></i>NVMe 固态硬盘监控</h4>
+            <button class="btn btn-primary" onclick="loadNVMeData()">
+                <i class="bi bi-arrow-clockwise me-1"></i>刷新
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Temperature Overview -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body py-2">
+                <div class="row text-center">
+                    <div class="col-3">
+                        <h5 id="nvme-count">--</h5>
+                        <small class="text-muted">硬盘总数</small>
+                    </div>
+                    <div class="col-3">
+                        <h5 id="temp-min">--</h5>
+                        <small class="text-muted">最低温度 (°C)</small>
+                    </div>
+                    <div class="col-3">
+                        <h5 id="temp-avg">--</h5>
+                        <small class="text-muted">平均温度 (°C)</small>
+                    </div>
+                    <div class="col-3">
+                        <h5 id="temp-max">--</h5>
+                        <small class="text-muted">最高温度 (°C)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- NVMe Device Cards -->
+<div class="row" id="nvme-devices">
+    <div class="col-12 text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">加载中...</span>
+        </div>
+        <p class="mt-2 text-muted">正在读取NVMe硬盘信息...</p>
+    </div>
+</div>
+
+<!-- System Status Row -->
+<div class="row mt-4">
+    <div class="col-md-3 mb-3">
+        <div class="card border-primary h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <small class="text-muted">CPU</small>
+                    <i class="bi bi-cpu text-primary"></i>
+                </div>
+                <h4 class="mb-0" id="cpu-percent">--%</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card border-success h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <small class="text-muted">内存</small>
+                    <i class="bi bi-memory text-success"></i>
+                </div>
+                <h4 class="mb-0" id="memory-percent">--%</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card border-warning h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <small class="text-muted">系统盘</small>
+                    <i class="bi bi-hdd text-warning"></i>
+                </div>
+                <h4 class="mb-0" id="disk-percent">--%</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card border-info h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <small class="text-muted">运行时间</small>
+                    <i class="bi bi-clock text-info"></i>
+                </div>
+                <h5 class="mb-0" id="uptime">--</h5>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Services and Quick Actions -->
+<div class="row mt-2">
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-header bg-dark text-white py-2">
+                <i class="bi bi-gear me-2"></i>服务状态
+            </div>
+            <div class="card-body py-2">
+                <div class="row">
+                    <div class="col-6">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-folder-fill text-primary me-2"></i>
+                            <span>Samba</span>
+                        </div>
+                        <span id="samba-status" class="badge bg-secondary mt-1">检查中</span>
+                    </div>
+                    <div class="col-6">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-cloud-upload text-success me-2"></i>
+                            <span>FTP</span>
+                        </div>
+                        <span id="ftp-status" class="badge bg-secondary mt-1">检查中</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-header bg-dark text-white py-2">
+                <i class="bi bi-ethernet me-2"></i>网络信息
+            </div>
+            <div class="card-body py-2" id="network-info">
+                <div class="text-muted">加载中...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mount Modal -->
+<div class="modal fade" id="mountModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-folder-plus me-2"></i>挂载硬盘</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="mountForm">
+                    <input type="hidden" id="mount-device">
+                    <div class="mb-3">
+                        <label class="form-label">设备</label>
+                        <input type="text" class="form-control" id="mount-device-display" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">挂载点</label>
+                        <input type="text" class="form-control" id="mount-point" placeholder="/mnt/nvme0">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="performMount()">挂载</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Format Modal -->
+<div class="modal fade" id="formatModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>格式化硬盘</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning mb-3">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>警告：</strong>格式化将清除该硬盘上的所有数据！
+                </div>
+                <form id="formatForm">
+                    <input type="hidden" id="format-device">
+                    <div class="mb-3">
+                        <label class="form-label">设备</label>
+                        <input type="text" class="form-control" id="format-device-display" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">文件系统</label>
+                        <select class="form-select" id="format-fstype">
+                            <option value="ext4">ext4 (推荐)</option>
+                            <option value="xfs">XFS</option>
+                            <option value="ntfs">NTFS</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" onclick="performFormat()">确认格式化</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-hdd me-2"></i>硬盘详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detail-content">
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Load all data
+function loadNVMeData() {
+    const container = document.getElementById('nvme-devices');
+    container.innerHTML = `
+        <div class="col-12 text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">正在读取NVMe硬盘信息...</p>
+        </div>
+    `;
+
+    fetch('/api/nvme')
+        .then(response => response.json())
+        .then(data => {
+            updateTemperatureSummary(data.temperature);
+            updateHealthSummary(data.health);
+            updateDeviceCards(data.devices);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            container.innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-danger">加载失败: ${error.message}</div>
+                </div>
+            `;
+        });
+
+    // Load system metrics
+    fetch('/api/system/status')
+        .then(response => response.json())
+        .then(data => {
+            if (data.metrics.cpu) {
+                document.getElementById('cpu-percent').textContent = data.metrics.cpu.percent + '%';
+            }
+            if (data.metrics.memory) {
+                document.getElementById('memory-percent').textContent = data.metrics.memory.percent + '%';
+            }
+            if (data.metrics.disk) {
+                document.getElementById('disk-percent').textContent = data.metrics.disk.percent + '%';
+            }
+            if (data.metrics.system) {
+                document.getElementById('uptime').textContent = data.metrics.system.uptime;
+            }
+            if (data.metrics.network && data.metrics.network.interfaces) {
+                const netDiv = document.getElementById('network-info');
+                let html = '';
+                data.metrics.network.interfaces.forEach(iface => {
+                    if (iface.ip.startsWith('192.168')) {
+                        html += `<div><i class="bi bi-ethernet me-1"></i>${iface.interface}: <strong>${iface.ip}</strong></div>`;
+                    }
+                });
+                netDiv.innerHTML = html || '无局域网连接';
+            }
+            if (data.services) {
+                const samba = document.getElementById('samba-status');
+                samba.textContent = data.services.samba.active ? '运行中' : '已停止';
+                samba.className = 'badge ' + (data.services.samba.active ? 'bg-success' : 'bg-danger');
+
+                const ftp = document.getElementById('ftp-status');
+                ftp.textContent = data.services.ftp.active ? '运行中' : '已停止';
+                ftp.className = 'badge ' + (data.services.ftp.active ? 'bg-success' : 'bg-danger');
+            }
+        });
+}
+
+function updateTemperatureSummary(temp) {
+    document.getElementById('nvme-count').textContent = temp.devices;
+    document.getElementById('temp-min').textContent = temp.min_temp;
+    document.getElementById('temp-avg').textContent = temp.avg_temp;
+    document.getElementById('temp-max').textContent = temp.max_temp;
+}
+
+function updateHealthSummary(health) {
+    // Health status is shown in device cards
+}
+
+function updateDeviceCards(devices) {
+    const container = document.getElementById('nvme-devices');
+
+    if (!devices || devices.length === 0) {
+        container.innerHTML = '<div class="col-12"><div class="alert alert-info">未检测到NVMe硬盘</div></div>';
+        return;
+    }
+
+    // 获取各硬盘空间信息
+    fetch('/api/nvme/storage')
+        .then(r => r.json())
+        .then(storage => {
+            let html = '';
+            devices.forEach((dev, i) => {
+                const tempClass = dev.temperature >= 80 ? 'danger' : dev.temperature >= 70 ? 'warning' : 'success';
+                const healthClass = dev.health === 'PASSED' ? 'success' : 'danger';
+                const shareName = i === 0 ? 'PiShare' : `Share-${i}`;
+                const diskInfo = storage.disks ? storage.disks[i] : null;
+                const availGB = diskInfo ? diskInfo.available_gb : '--';
+                const totalGB = diskInfo ? diskInfo.total_gb : '--';
+
+                html += `
+                <div class="col-md-6 col-lg-3 mb-4">
+                    <div class="card h-100 border-${healthClass}">
+                        <div class="card-header bg-dark text-white py-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-hdd me-2"></i>NVMe ${i}</span>
+                                <span class="badge bg-${healthClass}">${dev.health}</span>
+                            </div>
+                        </div>
+                        <div class="card-body py-2">
+                            <table class="table table-sm table-borderless mb-0">
+                                <tr>
+                                    <td class="text-muted ps-0">容量</td>
+                                    <td class="text-end"><strong>${totalGB} GB</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted ps-0">可用</td>
+                                    <td class="text-end"><span class="text-success">${availGB} GB</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted ps-0">温度</td>
+                                    <td class="text-end">
+                                        <span class="badge bg-${tempClass}">${dev.temperature}°C</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted ps-0">共享</td>
+                                    <td class="text-end"><small>\\\\192.168.1.7\\${shareName}</small></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="card-footer py-2">
+                            <div class="btn-group btn-group-sm w-100">
+                                <button class="btn btn-outline-primary" onclick="showDetail(${i})" title="详情">
+                                    <i class="bi bi-info-circle"></i>
+                                </button>
+                                <button class="btn btn-outline-success" onclick="openShare('${shareName}')" title="打开共享">
+                                    <i class="bi bi-folder"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                `;
+            });
+            container.innerHTML = html;
+        })
+        .catch(() => {
+            // 如果获取空间失败，仍显示基本信息
+            let html = '';
+            devices.forEach((dev, i) => {
+                const tempClass = dev.temperature >= 80 ? 'danger' : dev.temperature >= 70 ? 'warning' : 'success';
+                const healthClass = dev.health === 'PASSED' ? 'success' : 'danger';
+                const shareName = i === 0 ? 'PiShare' : `Share-${i}`;
+
+                html += `
+                <div class="col-md-6 col-lg-3 mb-4">
+                    <div class="card h-100 border-${healthClass}">
+                        <div class="card-header bg-dark text-white py-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-hdd me-2"></i>NVMe ${i}</span>
+                                <span class="badge bg-${healthClass}">${dev.health}</span>
+                            </div>
+                        </div>
+                        <div class="card-body py-2">
+                            <table class="table table-sm table-borderless mb-0">
+                                <tr>
+                                    <td class="text-muted ps-0">容量</td>
+                                    <td class="text-end"><strong>${dev.size}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted ps-0">温度</td>
+                                    <td class="text-end">
+                                        <span class="badge bg-${tempClass}">${dev.temperature}°C</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted ps-0">共享</td>
+                                    <td class="text-end"><small>\\\\192.168.1.7\\${shareName}</small></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="card-footer py-2">
+                            <div class="btn-group btn-group-sm w-100">
+                                <button class="btn btn-outline-primary" onclick="showDetail(${i})" title="详情">
+                                    <i class="bi bi-info-circle"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                `;
+            });
+            container.innerHTML = html;
+        });
+
+    // Store devices for detail view
+    window.nvmeDevices = devices;
+}
+
+function showDetail(index) {
+    const dev = window.nvmeDevices[index];
+    const shareName = index === 0 ? 'PiShare' : `Share-${index}`;
+    const html = `
+        <table class="table">
+            <tr><td class="text-muted">设备</td><td><strong>${dev.device}</strong></td></tr>
+            <tr><td class="text-muted">路径</td><td>${dev.path}</td></tr>
+            <tr><td class="text-muted">型号</td><td>${dev.model}</td></tr>
+            <tr><td class="text-muted">序列号</td><td>${dev.serial}</td></tr>
+            <tr><td class="text-muted">容量</td><td>${dev.size}</td></tr>
+            <tr><td class="text-muted">温度</td><td><span class="badge bg-info">${dev.temperature}°C</span></td></tr>
+            <tr><td class="text-muted">健康状态</td><td><span class="badge bg-success">${dev.health}</span></td></tr>
+            <tr><td class="text-muted">使用率</td><td>${dev.percentage_used}%</td></tr>
+            <tr><td class="text-muted">通电次数</td><td>${dev.power_cycles} 次</td></tr>
+            <tr><td class="text-muted">数据读取</td><td>${dev.data_read_gb} GB</td></tr>
+            <tr><td class="text-muted">数据写入</td><td>${dev.data_written_gb} GB</td></tr>
+            <tr><td class="text-muted">Samba共享</td><td><strong>\\\\192.168.1.7\\${shareName}</strong></td></tr>
+            <tr><td class="text-muted">本地路径</td><td>/mnt/nvme${index}/shares/</td></tr>
+        </table>
+    `;
+
+    document.getElementById('detail-content').innerHTML = html;
+    new bootstrap.Modal(document.getElementById('detailModal')).show();
+}
+
+function openShare(shareName) {
+    alert(`在Windows文件资源管理器地址栏输入:\n\\\\192.168.1.7\\${shareName}\n\n用户名: weiguiwen666\n密码: nas123`);
+}
+
+function showMountModal(device) {
+    document.getElementById('mount-device').value = device;
+    document.getElementById('mount-device-display').value = '/dev/' + device;
+    document.getElementById('mount-point').value = '/mnt/' + device.replace('n1', '');
+    new bootstrap.Modal(document.getElementById('mountModal')).show();
+}
+
+function performMount() {
+    const device = document.getElementById('mount-device').value;
+    const mountPoint = document.getElementById('mount-point').value;
+
+    if (!mountPoint) {
+        alert('请输入挂载点');
+        return;
+    }
+
+    fetch(`/api/nvme/${device}/mount`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({mount_point: mountPoint})
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.success ? data.message : '挂载失败: ' + data.error);
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('mountModal')).hide();
+            loadNVMeData();
+        }
+    })
+    .catch(error => alert('操作失败: ' + error.message));
+}
+
+function showFormatModal(device) {
+    if (!confirm(`确定要格式化 ${device} 吗？所有数据将被清除！`)) return;
+
+    document.getElementById('format-device').value = device;
+    document.getElementById('format-device-display').value = '/dev/' + device;
+    new bootstrap.Modal(document.getElementById('formatModal')).show();
+}
+
+function performFormat() {
+    const device = document.getElementById('format-device').value;
+    const fstype = document.getElementById('format-fstype').value;
+
+    fetch(`/api/nvme/${device}/format`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({fstype: fstype})
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.success ? data.message : '格式化失败: ' + data.error);
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('formatModal')).hide();
+            loadNVMeData();
+        }
+    })
+    .catch(error => alert('操作失败: ' + error.message));
+}
+
+// Initial load
+document.addEventListener('DOMContentLoaded', loadNVMeData);
+</script>
+{% endblock %}

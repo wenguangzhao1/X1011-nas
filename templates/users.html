@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}用户管理 - NAS管理系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-people me-2"></i>用户管理</span>
+                <button class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#createUserModal">
+                    <i class="bi bi-person-plus me-1"></i>创建用户
+                </button>
+            </div>
+            <div class="card-body">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>用户名</th>
+                            <th>邮箱</th>
+                            <th>状态</th>
+                            <th>角色</th>
+                            <th>创建时间</th>
+                            <th>最后登录</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTable">
+                        {% for user in users %}
+                        <tr>
+                            <td>{{ user.id }}</td>
+                            <td>{{ user.username }}</td>
+                            <td>{{ user.email or '-' }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if user.is_active else 'danger' }}">
+                                    {{ '活跃' if user.is_active else '禁用' }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if user.is_admin %}
+                                <span class="badge bg-warning">管理员</span>
+                                {% else %}
+                                <span class="badge bg-secondary">普通用户</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else '-' }}</td>
+                            <td>{{ user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else '从未' }}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    {% if user.username != 'admin' %}
+                                    <button class="btn btn-outline-primary" onclick="editUser({{ user.id }})">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger" onclick="deleteUser({{ user.id }}, '{{ user.username }}')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create User Modal -->
+<div class="modal fade" id="createUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>创建新用户</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createUserForm">
+                    <div class="mb-3">
+                        <label class="form-label">用户名 *</label>
+                        <input type="text" class="form-control" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">密码 *</label>
+                        <input type="password" class="form-control" name="password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">邮箱</label>
+                        <input type="email" class="form-control" name="email">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="createUser()">创建</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function createUser() {
+    const form = document.getElementById('createUserForm');
+    const formData = new FormData(form);
+
+    fetch('/api/users', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            username: formData.get('username'),
+            password: formData.get('password'),
+            email: formData.get('email') || null
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('用户创建成功');
+            location.reload();
+        } else {
+            alert('创建失败: ' + (data.error || '未知错误'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('创建失败');
+    });
+}
+
+function deleteUser(userId, username) {
+    if (!confirm(`确定要删除用户 "${username}" 吗？此操作不可撤销。`)) {
+        return;
+    }
+
+    fetch(`/api/users/${userId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('用户已删除');
+            location.reload();
+        } else {
+            alert('删除失败: ' + (data.error || '未知错误'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('删除失败');
+    });
+}
+
+function editUser(userId) {
+    alert('编辑用户功能开发中...');
+}
+</script>
+{% endblock %}

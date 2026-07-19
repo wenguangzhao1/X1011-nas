@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}共享管理 - NAS管理系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-folder me-2"></i>共享文件夹</span>
+                <button class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#createShareModal">
+                    <i class="bi bi-folder-plus me-1"></i>创建共享
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Samba Shares -->
+                    <div class="col-md-6 mb-4">
+                        <h5><i class="bi bi-folder-fill text-primary me-2"></i>SMB共享</h5>
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>名称</th>
+                                    <th>路径</th>
+                                    <th>权限</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for name, config in samba_shares.items() %}
+                                <tr>
+                                    <td><strong>{{ name }}</strong></td>
+                                    <td><code>{{ config.get('path', '-') }}</code></td>
+                                    <td>
+                                        <span class="badge bg-{{ 'danger' if config.get('read only') == 'yes' else 'success' }}">
+                                            {{ '只读' if config.get('read only') == 'yes' else '读写' }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted">暂无共享</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Database Shares -->
+                    <div class="col-md-6 mb-4">
+                        <h5><i class="bi bi-database text-success me-2"></i>数据库记录</h5>
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>名称</th>
+                                    <th>协议</th>
+                                    <th>描述</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for share in db_shares %}
+                                <tr>
+                                    <td><strong>{{ share.name }}</strong></td>
+                                    <td>
+                                        <span class="badge bg-info">{{ share.protocol.upper() }}</span>
+                                    </td>
+                                    <td>{{ share.description or '-' }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted">暂无记录</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Share Modal -->
+<div class="modal fade" id="createShareModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-folder-plus me-2"></i>创建共享文件夹</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createShareForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">共享名称 *</label>
+                            <input type="text" class="form-control" name="name"
+                                   placeholder="例如: Movies" required>
+                            <small class="text-muted">仅允许字母、数字、下划线和短横线</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">协议 *</label>
+                            <select class="form-select" name="protocol">
+                                <option value="smb">SMB (Windows)</option>
+                                <option value="ftp">FTP</option>
+                                <option value="both">SMB + FTP</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">路径 *</label>
+                        <input type="text" class="form-control" name="path"
+                               placeholder="/home/weiguiwen666/zw/storage/shares/your-folder" required>
+                        <small class="text-muted">如果目录不存在将自动创建</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">描述</label>
+                        <input type="text" class="form-control" name="description"
+                               placeholder="可选的描述信息">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="readonly" id="readonly">
+                                <label class="form-check-label" for="readonly">只读</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="public" id="public">
+                                <label class="form-check-label" for="public">公开访问 (无需密码)</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">有效用户</label>
+                        <input type="text" class="form-control" name="valid_users"
+                               placeholder="用户名1, 用户名2 (留空表示所有人可访问)">
+                        <small class="text-muted">多个用户用逗号分隔</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="createShare()">创建</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function createShare() {
+    const form = document.getElementById('createShareForm');
+    const formData = new FormData(form);
+
+    const data = {
+        name: formData.get('name'),
+        path: formData.get('path'),
+        description: formData.get('description') || '',
+        protocol: formData.get('protocol'),
+        readonly: form.querySelector('[name="readonly"]').checked,
+        public: form.querySelector('[name="public"]').checked,
+        valid_users: formData.get('valid_users') || ''
+    };
+
+    fetch('/api/shares', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('共享创建成功');
+            location.reload();
+        } else {
+            alert('创建失败: ' + (data.error || '未知错误'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('创建失败');
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,133 @@
+/* NAS Web Application Custom Styles */
+
+/* Global Styles */
+body {
+    background-color: #f8f9fa;
+}
+
+/* Navbar Styles */
+.navbar-brand {
+    font-weight: bold;
+}
+
+/* Card Styles */
+.card {
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.card-header {
+    border-bottom: none;
+}
+
+/* Progress Bar Animation */
+.progress-bar {
+    transition: width 0.5s ease-in-out;
+}
+
+/* Table Styles */
+.table {
+    margin-bottom: 0;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+}
+
+/* Button Styles */
+.btn-group-sm > .btn {
+    padding: 0.25rem 0.5rem;
+}
+
+/* Badge Styles */
+.badge {
+    font-weight: 500;
+}
+
+/* Alert Styles */
+.alert {
+    border: none;
+    border-radius: 8px;
+}
+
+/* Modal Styles */
+.modal-header {
+    border-bottom: 2px solid #dee2e6;
+}
+
+.modal-footer {
+    border-top: 2px solid #dee2e6;
+}
+
+/* Status Cards */
+.border-primary {
+    border-width: 2px;
+}
+
+.border-success {
+    border-width: 2px;
+}
+
+.border-warning {
+    border-width: 2px;
+}
+
+.border-info {
+    border-width: 2px;
+}
+
+/* Animation for status updates */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.status-updating {
+    animation: pulse 1s infinite;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .display-4 {
+        font-size: 2rem;
+    }
+
+    .card-body {
+        padding: 1rem;
+    }
+}
+
+/* Code blocks */
+code {
+    background-color: #f8f9fa;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}

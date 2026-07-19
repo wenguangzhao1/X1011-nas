@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+
+{% block title %}NVMe存储管理 - NAS管理系统{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h4><i class="bi bi-hdd-stack me-2"></i>NVMe 固态硬盘管理</h4>
+            <button class="btn btn-primary" onclick="loadNVMeData()">
+                <i class="bi bi-arrow-clockwise me-1"></i>刷新数据
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Temperature and Health Summary -->
+<div class="row mb-4">
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-header bg-dark text-white">
+                <i class="bi bi-thermometer-half me-2"></i>温度监控
+            </div>
+            <div class="card-body text-center">
+                <div id="temp-status" class="mb-3">
+                    <span class="badge bg-secondary fs-5">加载中...</span>
+                </div>
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h5 id="temp-min">--</h5>
+                        <small class="text-muted">最低 °C</small>
+                    </div>
+                    <div class="col-4">
+                        <h5 id="temp-avg">--</h5>
+                        <small class="text-muted">平均 °C</small>
+                    </div>
+                    <div class="col-4">
+                        <h5 id="temp-max">--</h5>
+                        <small class="text-muted">最高 °C</small>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle me-1"></i>
+                        警告阈值: 70°C | 危险阈值: 80°C
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-header bg-dark text-white">
+                <i class="bi bi-heart-pulse me-2"></i>健康状态
+            </div>
+            <div class="card-body text-center">
+                <div id="health-status" class="mb-3">
+                    <span class="badge bg-secondary fs-5">加载中...</span>
+                </div>
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h5 id="health-total">--</h5>
+                        <small class="text-muted">硬盘总数</small>
+                    </div>
+                    <div class="col-4">
+                        <h5 id="health-passed" class="text-success">--</h5>
+                        <small class="text-muted">健康</small>
+                    </div>
+                    <div class="col-4">
+                        <h5 id="health-failed" class="text-danger">--</h5>
+                        <small class="text-muted">异常</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- NVMe Device Cards -->
+<div class="row" id="nvme-devices">
+    <div class="col-12 text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">加载中...</span>
+        </div>
+        <p class="mt-2 text-muted">正在读取NVMe硬盘信息...</p>
+    </div>
+</div>
+
+<!-- Mount Operations Modal -->
+<div class="modal fade" id="mountModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-folder-plus me-2"></i>挂载硬盘</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="mountForm">
+                    <input type="hidden" id="mount-device">
+                    <div class="mb-3">
+                        <label class="form-label">设备</label>
+                        <input type="text" class="form-control" id="mount-device-display" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">挂载点</label>
+                        <input type="text" class="form-control" id="mount-point"
+                               placeholder="/mnt/disk1">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="performMount()">挂载</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Format Modal -->
+<div class="modal fade" id="formatModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>格式化硬盘</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>警告：</strong>格式化将清除所有数据！
+                </div>
+                <form id="formatForm">
+                    <input type="hidden" id="format-device">
+                    <div class="mb-3">
+                        <label class="form-label">设备</label>
+                        <input type="text" class="form-control" id="format-device-display" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">文件系统</label>
+                        <select class="form-select" id="format-fstype">
+                            <option value="ext4">ext4 (推荐)</option>
+                            <option value="xfs">XFS</option>
+                            <option value="ntfs">NTFS</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" onclick="performFormat()">确认格式化</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Load NVMe data
+function loadNVMeData() {
+    const container = document.getElementById('nvme-devices');
+    container.innerHTML = `
+        <div class="col-12 text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">加载中...</span>
+            </div>
+            <p class="mt-2 text-muted">正在读取NVMe硬盘信息...</p>
+        </div>
+    `;
+
+    fetch('/api/nvme')
+        .then(response => response.json())
+        .then(data => {
+            updateTemperatureDisplay(data.temperature);
+            updateHealthDisplay(data.health);
+            updateDeviceCards(data.devices);
+        })
+        .catch(error => {
+            console.error('Error loading NVMe data:', error);
+            container.innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        加载NVMe数据失败: ${error.message}
+                    </div>
+                </div>
+            `;
+        });
+}
+
+// Update temperature display
+function updateTemperatureDisplay(temp) {
+    const statusEl = document.getElementById('temp-status');
+    const statusClass = temp.status === 'OK' ? 'bg-success' :
+                        temp.status === 'WARNING' ? 'bg-warning' : 'bg-danger';
+    statusEl.innerHTML = `<span class="badge ${statusClass} fs-5">${temp.status}</span>`;
+
+    document.getElementById('temp-min').textContent = temp.min_temp;
+    document.getElementById('temp-avg').textContent = temp.avg_temp;
+    document.getElementById('temp-max').textContent = temp.max_temp;
+}
+
+// Update health display
+function updateHealthDisplay(health) {
+    const statusEl = document.getElementById('health-status');
+    const statusClass = health.status === 'OK' ? 'bg-success' : 'bg-warning';
+    statusEl.innerHTML = `<span class="badge ${statusClass} fs-5">${health.status}</span>`;
+
+    document.getElementById('health-total').textContent = health.total;
+    document.getElementById('health-passed').textContent = health.passed;
+    document.getElementById('health-failed').textContent = health.failed;
+}
+
+// Update device cards
+function updateDeviceCards(devices) {
+    const container = document.getElementById('nvme-devices');
+
+    if (!devices || devices.length === 0) {
+        container.innerHTML = `
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    未检测到NVMe硬盘
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    devices.forEach((device, index) => {
+        const tempClass = device.temperature >= 80 ? 'bg-danger' :
+                          device.temperature >= 70 ? 'bg-warning' : 'bg-success';
+        const healthClass = device.health === 'PASSED' ? 'bg-success' : 'bg-danger';
+
+        html += `
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-dark text-white">
+                    <i class="bi bi-hdd me-2"></i>${device.device}
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr>
+                            <td class="text-muted">型号:</td>
+                            <td><small>${device.model || 'N/A'}</small></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">容量:</td>
+                            <td>${device.size}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">温度:</td>
+                            <td>
+                                <span class="badge ${tempClass}">${device.temperature}°C</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">健康:</td>
+                            <td>
+                                <span class="badge ${healthClass}">${device.health}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">使用率:</td>
+                            <td>${device.percentage_used}%</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">挂载:</td>
+                            <td><small>${device.mountpoint || '未挂载'}</small></td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="card-footer text-center">
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary" onclick="showMountModal('${device.device}')"
+                                title="挂载">
+                            <i class="bi bi-folder-plus"></i>
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="showFormatModal('${device.device}')"
+                                title="格式化">
+                            <i class="bi bi-hammer"></i>
+                        </button>
+                        <button class="btn btn-outline-info" onclick="showDeviceInfo('${device.device}')"
+                                title="详情">
+                            <i class="bi bi-info-circle"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+// Show mount modal
+function showMountModal(device) {
+    document.getElementById('mount-device').value = device;
+    document.getElementById('mount-device-display').value = '/dev/' + device;
+    document.getElementById('mount-point').value = '/mnt/' + device.replace('n1p1', '').replace('n1', '');
+
+    const modal = new bootstrap.Modal(document.getElementById('mountModal'));
+    modal.show();
+}
+
+// Perform mount
+function performMount() {
+    const device = document.getElementById('mount-device').value;
+    const mountPoint = document.getElementById('mount-point').value;
+
+    if (!mountPoint) {
+        alert('请输入挂载点');
+        return;
+    }
+
+    fetch(`/api/nvme/${device}/mount`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({mount_point: mountPoint})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            bootstrap.Modal.getInstance(document.getElementById('mountModal')).hide();
+            loadNVMeData();
+        } else {
+            alert('挂载失败: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('操作失败: ' + error.message);
+    });
+}
+
+// Show format modal
+function showFormatModal(device) {
+    if (!confirm(`确定要格式化 ${device} 吗？所有数据将被清除！`)) {
+        return;
+    }
+
+    document.getElementById('format-device').value = device;
+    document.getElementById('format-device-display').value = '/dev/' + device;
+
+    const modal = new bootstrap.Modal(document.getElementById('formatModal'));
+    modal.show();
+}
+
+// Perform format
+function performFormat() {
+    const device = document.getElementById('format-device').value;
+    const fstype = document.getElementById('format-fstype').value;
+
+    fetch(`/api/nvme/${device}/format`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({fstype: fstype})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            bootstrap.Modal.getInstance(document.getElementById('formatModal')).hide();
+            loadNVMeData();
+        } else {
+            alert('格式化失败: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('操作失败: ' + error.message);
+    });
+}
+
+// Show device info
+function showDeviceInfo(device) {
+    fetch(`/api/nvme/${device}`)
+        .then(response => response.json())
+        .then(data => {
+            const info = `
+设备: ${data.device}
+型号: ${data.model}
+序列号: ${data.serial}
+容量: ${data.size}
+温度: ${data.temperature}°C
+健康状态: ${data.health}
+使用率: ${data.percentage_used}%
+通电次数: ${data.power_cycles}
+通电时间: ${data.power_on_hours} 小时
+读取量: ${data.data_read_gb} GB
+写入量: ${data.data_written_gb} GB
+挂载点: ${data.mountpoint || '未挂载'}
+文件系统: ${data.fstype || '无'}
+            `;
+            alert(info);
+        })
+        .catch(error => {
+            alert('获取信息失败: ' + error.message);
+        });
+}
+
+// Initial load
+document.addEventListener('DOMContentLoaded', function() {
+    loadNVMeData();
+});
+</script>
+{% endblock %}

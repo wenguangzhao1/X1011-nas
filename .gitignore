@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Flask
+instance/
+.webassets-cache
+
+# Database (敏感数据)
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+nas-web-logs/
+
+# Environment
+.env
+.env.local
+*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets (不要上传密钥！)
+config_local.py
+secrets.json
